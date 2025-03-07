@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { NgForm } from '@angular/forms';
 import { Course } from '../../interfaces/course.interface';
 import { CourseService } from '../../services/course.service';
@@ -10,25 +10,26 @@ import { CourseService } from '../../services/course.service';
   styleUrl: './admin.component.css'
 })
 export class AdminComponent {
-  model = signal<any>({});
-  cover = signal<string | null>(null);
-  cover_file = signal<any>(null);
-  showError = signal<boolean>(false);
-  isSaved = signal<boolean>(false);
+  model: Partial<Course> = {};  // Simple object for form binding
+  cover: string | null = null;
+  coverFile: File | null = null;
+  showError = false;
+  isSaved = false;
 
   private courseService = inject(CourseService);
 
   onFileSelected(event: any) {
     const file = event.target.files[0];
     if (file) {
-      this.cover_file.set(file);
+      this.coverFile = file;
+
       const reader = new FileReader();
       reader.onload = () => {
-        const dataUrl = reader.result!.toString();
-        this.cover.set(dataUrl);
+        this.cover = reader.result as string;
       };
       reader.readAsDataURL(file);
-      this.showError.set(false);
+
+      this.showError = false;
     }
   }
 
@@ -36,7 +37,7 @@ export class AdminComponent {
     if (form.invalid || !this.cover) {
       form.control.markAllAsTouched();
       if (!this.cover) {
-        this.showError.set(true);
+        this.showError = true;
       }
       return;
     }
@@ -45,29 +46,29 @@ export class AdminComponent {
   }
 
   clearForm(form: NgForm) {
-    form.reset();
-    this.cover.set(null);
-    this.cover_file.set(null);
+    form.resetForm();
+    this.cover = null;
+    this.coverFile = null;
+    this.model = {};
   }
 
   async saveCourse(form: NgForm) {
     try {
-      const formValue = form.value;
-
       const data: Course = {
-        ...formValue,
-        image: this.cover(),
+        ...form.value,
+        image: this.cover!,  // Safe because we check in onSubmit
       };
 
-      await this.courseService.addCourse(data);
+      this.courseService.addCourse(data);
 
-      this.isSaved.set(true);
+      this.isSaved = true;
       setTimeout(() => {
-        this.isSaved.set(false);
+        this.isSaved = false;
       }, 2000);
+
       this.clearForm(form);
     } catch (e) {
-      console.log(e);
+      console.error(e);
     }
   }
 }
