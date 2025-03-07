@@ -7,7 +7,7 @@ import { CourseService } from '../../services/course.service';
   selector: 'app-admin',
   standalone: false,
   templateUrl: './admin.component.html',
-  styleUrl: './admin.component.scss'
+  styleUrl: './admin.component.css'
 })
 export class AdminComponent {
   model = signal<any>({});

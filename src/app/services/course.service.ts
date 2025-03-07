@@ -1,68 +1,55 @@
-import { Injectable, signal, WritableSignal } from '@angular/core';
+import { Injectable } from '@angular/core';
+import { BehaviorSubject, Observable } from 'rxjs';
 import { Strings } from '../enum/strings.enum';
 import { Course } from '../interfaces/course.interface';
 
-// Injectable decorator marks this class as available for injection into other components/services
 @Injectable({
   providedIn: 'root'
 })
-
 export class CourseService {
 
-  // Signal to hold the courses array
-  private courses: WritableSignal<Course[]> = signal<Course[]>([]);
+  // BehaviorSubject to hold the courses array (initially empty)
+  private coursesSubject: BehaviorSubject<Course[]> = new BehaviorSubject<Course[]>([]);
+  
+  // Expose the observable for components to subscribe to
+  courses$: Observable<Course[]> = this.coursesSubject.asObservable();
 
-  // Getter to expose the signal as a readonly signal
-  get coursesSignal() {
-    return this.courses.asReadonly;
-  }
-
-  // Constructor to initialize the service and load courses from local storage
   constructor() { 
     this.loadCourses();
   }
 
-  // Method to load courses from local storage
-  loadCourses() {
+  // Load courses from local storage
+  private loadCourses() {
     const data = localStorage.getItem(Strings.STORAGE_KEY);
-    if(data) {
+    if (data) {
       const courses = JSON.parse(data);
-      this.courses.set(courses);
+      this.coursesSubject.next(courses);  // Push initial data into the subject
     }
   }
 
-  // Method to get the current courses array
+  // Getter method to fetch the current value (useful for synchronous access)
   getCourses(): Course[] {
-    return this.courses();
+    return this.coursesSubject.value;
   }
 
-  // Method to add a new course to the courses array
+  // Add a new course
   addCourse(data: Course) {
-    let updatedCourses: Course[] = [];
-
-    this.courses.update(courses => {
-      const newCourse = { ...data, id: courses.length + 1 };
-      updatedCourses = [...courses, newCourse];
-      this.setItem(updatedCourses);
-      return updatedCourses;
-    });
-
+    const currentCourses = this.getCourses();
+    const newCourse = { ...data, id: currentCourses.length + 1 };
+    const updatedCourses = [...currentCourses, newCourse];
+    this.updateCourses(updatedCourses);
     return updatedCourses;
   }
 
-  // Method to delete a course from the courses array
+  // Delete a course
   deleteCourse(data: Course) {
-    this.courses.update((courses) => {
-      const updatedCourses = courses.filter(c => c.id !== data.id);
-      this.setItem(updatedCourses);
-      return updatedCourses;
-    });
+    const updatedCourses = this.getCourses().filter(c => c.id !== data.id);
+    this.updateCourses(updatedCourses);
   }
 
-  // Method to save the courses array to local storage
-  setItem(data: Course[]) {
-    localStorage.setItem(Strings.STORAGE_KEY, JSON.stringify(data));
+  // Updating both local storage and the BehaviorSubject
+  private updateCourses(courses: Course[]) {
+    this.coursesSubject.next(courses);
+    localStorage.setItem(Strings.STORAGE_KEY, JSON.stringify(courses));
   }
-
 }
-
